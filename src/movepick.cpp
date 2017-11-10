@@ -142,9 +142,18 @@ void MovePicker::score() {
 
       else // Type == EVASIONS
       {
-          if (pos.capture(m))
+          if (pos.capture(m)) {
+
+              PieceType pt = type_of(pos.moved_piece(m));
+
+              if (pt >= QUEEN)
+                  pt -= PieceType(2);
+              else if (pt >= HAWK)
+                  pt += PieceType(2);
+              
               m.value =  PieceValue[MG][pos.piece_on(to_sq(m))]
-                       - Value(type_of(pos.moved_piece(m)));
+                       - Value(pt);
+          }
           else
               m.value = (*mainHistory)[pos.side_to_move()][from_to(m)] - (1 << 28);
       }

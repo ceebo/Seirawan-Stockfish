@@ -290,9 +290,9 @@ namespace {
     moveList = generate_moves<  KNIGHT, Checks>(pos, moveList, Us, target);
     moveList = generate_moves<  BISHOP, Checks>(pos, moveList, Us, target);
     moveList = generate_moves<    ROOK, Checks>(pos, moveList, Us, target);
+    moveList = generate_moves<   QUEEN, Checks>(pos, moveList, Us, target);
     moveList = generate_moves<    HAWK, Checks>(pos, moveList, Us, target);
     moveList = generate_moves<ELEPHANT, Checks>(pos, moveList, Us, target);
-    moveList = generate_moves<   QUEEN, Checks>(pos, moveList, Us, target);
 
     if (Type != QUIET_CHECKS && Type != EVASIONS)
     {

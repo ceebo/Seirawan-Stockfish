@@ -475,6 +475,19 @@ inline PieceType gating_type(Move m) {
   return PieceType(((m >> 12) & 3) + ROOK);
 }
 
+inline Move translate(Move m) {
+
+    int x = PROMOTION;
+    x += (QUEEN - KNIGHT) << 12;
+    x -= PROMOTION2;
+    x -= (QUEEN - ROOK) << 12;
+
+    if (type_of(m) == PROMOTION && promotion_type(m) == QUEEN)
+        m = Move(m + x);
+
+    return m;
+}
+
 inline bool is_ok(Move m) {
   return from_sq(m) != to_sq(m); // Catch MOVE_NULL and MOVE_NONE
 }
