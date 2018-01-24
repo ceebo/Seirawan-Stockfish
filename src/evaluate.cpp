@@ -100,6 +100,7 @@ namespace {
     template<Color Us> Score evaluate_passed_pawns();
     template<Color Us> Score evaluate_space();
     template<Color Us, PieceType Pt> Score evaluate_pieces();
+    template<Color Us> Score evaluate_hand();
     ScaleFactor evaluate_scale_factor(Value eg);
     Score evaluate_initiative(Value eg);
 
@@ -553,15 +554,6 @@ namespace {
     Bitboard b, weak, defended, stronglyProtected, safeThreats;
     Score score = SCORE_ZERO;
 
-    // Penalty for running out of gates
-    Value v = (      HawkValueMg * pos.in_hand(Us, HAWK)
-               + ElephantValueMg * pos.in_hand(Us, ELEPHANT)
-               +    QueenValueMg * pos.in_hand(Us, QUEEN))
-
-                     /  (1 + popcount(pos.gates(Us)));
-
-    score -= make_score(v, v);
-
     // Non-pawn enemies attacked by a pawn
     weak = (pos.pieces(Them) ^ pos.pieces(Them, PAWN)) & attackedBy[Us][PAWN];
 
@@ -835,6 +827,36 @@ namespace {
     return sf;
   }
 
+  int Coeffs[2][3];
+    
+  template<Tracing T>  template<Color Us>
+  Score Evaluation<T>::evaluate_hand() {
+
+    Score score = pos.hand_score(Us);
+    Bitboard gatesBB = pos.gates(Us);
+    
+    if (!score || !gatesBB)
+	return SCORE_ZERO;
+    
+    bool two_in_hand = (score > make_score(QueenValueMg, QueenValueEg));
+    
+    if (two_in_hand && !more_than_one(gatesBB))
+        score = score / 2;
+    
+    int p = popcount(gatesBB);
+    int *c = Coeffs[two_in_hand];
+    
+    int a = 8 * p - 32;
+    int b = p * (p - 16) + 32;
+        
+    Value v = Value(32 * c[0] + a * c[1] + b * c[2]) / 32;
+    
+    return score + make_score(v, v);
+    
+    //  To be replaced by lookup if tuning is successful...
+    //  return score + GateScore[popcount(gatesBB)][two_in_hand];
+  }
+
 
   // value() is the main function of the class. It computes the various parts of
   // the evaluation and returns the value of the position from the point of view
@@ -885,6 +907,9 @@ namespace {
     score +=  evaluate_passed_pawns<WHITE>()
             - evaluate_passed_pawns<BLACK>();
 
+    score +=  evaluate_hand<WHITE>()
+            - evaluate_hand<BLACK>();
+    
     if (pos.non_pawn_material() >= SpaceThreshold)
         score +=  evaluate_space<WHITE>()
                 - evaluate_space<BLACK>();
