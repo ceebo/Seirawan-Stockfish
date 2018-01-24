@@ -829,6 +829,8 @@ namespace {
 
   int Coeffs[2][3];
     
+  TUNE(SetRange(-250, 250), Coeffs);
+
   template<Tracing T>  template<Color Us>
   Score Evaluation<T>::evaluate_hand() {
 
