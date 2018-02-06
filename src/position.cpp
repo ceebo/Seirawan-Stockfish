@@ -432,6 +432,12 @@ void Position::set_state(StateInfo* si) const {
 
       for (int cnt = 0; cnt < pieceCount[pc]; ++cnt)
           si->materialKey ^= Zobrist::psq[pc][cnt];
+
+      if (inHand[pc])
+      {
+          si->nonPawnMaterial[color_of(pc)] += PieceValue[MG][pc];
+          si->materialKey ^= Zobrist::inhand[pc] ^ Zobrist::psq[pc][pieceCount[pc]];
+      }
   }
 }
 
@@ -937,8 +943,7 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
       remove_from_hand(sideToMove, gating_type(m));
       st->psq += PSQT::psq[gating_piece][gating_square];
       k ^= Zobrist::psq[gating_piece][gating_square] ^ Zobrist::inhand[gating_piece];
-      st->materialKey ^= Zobrist::psq[gating_piece][pieceCount[gating_piece]-1];
-      st->nonPawnMaterial[us] += PieceValue[MG][gating_piece];
+      st->materialKey ^= Zobrist::inhand[gating_piece];
       if (empty_hand(us))
           lostGates |= gates(us);
   }
