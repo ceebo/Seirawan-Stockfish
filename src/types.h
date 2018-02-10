@@ -208,8 +208,10 @@ enum Value : int {
   ElephantValueMg = 2060,  ElephantValueEg = 2556,
   QueenValueMg    = 2198,  QueenValueEg    = 2617,
 
-  MidgameLimit  = 15258, EndgameLimit  = 3915
+  EndgameLimit  = 3915
 };
+
+extern Value MidgameLimit;
 
 enum PieceType {
   NO_PIECE_TYPE, PAWN, KNIGHT, BISHOP, ROOK, HAWK, ELEPHANT, QUEEN, KING,

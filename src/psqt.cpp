@@ -27,6 +27,14 @@ Value PieceValue[PHASE_NB][PIECE_NB] = {
   { VALUE_ZERO, PawnValueEg, KnightValueEg, BishopValueEg, RookValueEg, HawkValueEg, ElephantValueEg, QueenValueEg }
 };
 
+Value BaseValue[PHASE_NB][PIECE_NB] = {
+  { VALUE_ZERO, PawnValueMg, KnightValueMg, BishopValueMg, RookValueMg, HawkValueMg, ElephantValueMg, QueenValueMg },
+  { VALUE_ZERO, PawnValueEg, KnightValueEg, BishopValueEg, RookValueEg, HawkValueEg, ElephantValueEg, QueenValueEg }
+};
+
+int factor = 16384;
+Value MidgameLimit = Value(15258);
+
 Score PieceScore[PIECE_TYPE_NB];
 
 namespace PSQT {
@@ -131,6 +139,9 @@ void init() {
 
   for (Piece pc = W_PAWN; pc <= W_KING; ++pc)
   {
+      PieceValue[MG][pc] = BaseValue[EG][pc] + (BaseValue[MG][pc] - BaseValue[EG][pc]) * factor / 16384;
+      PieceValue[EG][pc] = BaseValue[EG][pc];
+
       PieceValue[MG][~pc] = PieceValue[MG][pc];
       PieceValue[EG][~pc] = PieceValue[EG][pc];
 
@@ -146,5 +157,7 @@ void init() {
       }
   }
 }
+
+TUNE(factor, MidgameLimit, init);
 
 } // namespace PSQT
