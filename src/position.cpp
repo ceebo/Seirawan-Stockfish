@@ -43,6 +43,7 @@ namespace PSQT {
 namespace Zobrist {
 
   Key psq[PIECE_NB][SQUARE_NB];
+  Key mat[PIECE_NB];
   Key inhand[PIECE_NB];
   Key enpassant[FILE_NB];
   Key gate[SQUARE_NB];
@@ -138,6 +139,7 @@ void Position::init() {
   {
       for (Square s = SQ_A1; s < SQUARE_NB; ++s)
           Zobrist::psq[pc][s] = rng.rand<Key>();
+      Zobrist::mat[pc] = rng.rand<Key>();
       Zobrist::inhand[pc] = rng.rand<Key>();
   }
 
@@ -429,9 +431,19 @@ void Position::set_state(StateInfo* si) const {
   {
       if (type_of(pc) != PAWN && type_of(pc) != KING)
           si->nonPawnMaterial[color_of(pc)] += pieceCount[pc] * PieceValue[MG][pc];
+      si->materialKey += pieceCount[pc] * Zobrist::mat[pc];
 
-      for (int cnt = 0; cnt < pieceCount[pc]; ++cnt)
-          si->materialKey ^= Zobrist::psq[pc][cnt];
+      // Include hand material in the material state providing there
+      // are gating squares for that side. If one side has two pieces
+      // in hand but only one gating square then one could argue that
+      // this over-counts the amount of non-pawn-material. Fixing this
+      // is difficult because it would require the material key having
+      // even better knowledge of the remaining gate squares.
+      if (inHand[pc] && gates(color_of(pc)))
+      {
+          si->nonPawnMaterial[color_of(pc)] += PieceValue[MG][pc];
+          si->materialKey += Zobrist::inhand[pc] + Zobrist::mat[pc];
+      }
   }
 }
 
@@ -853,7 +865,7 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
 
       // Update material hash key and prefetch access to materialTable
       k ^= Zobrist::psq[captured][capsq];
-      st->materialKey ^= Zobrist::psq[captured][pieceCount[captured]];
+      st->materialKey -= Zobrist::mat[captured];
       prefetch(thisThread->materialTable[st->materialKey]);
 
       // Update incremental scores
@@ -909,8 +921,7 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
           // Update hash keys
           k ^= Zobrist::psq[pc][to] ^ Zobrist::psq[promotion][to];
           st->pawnKey ^= Zobrist::psq[pc][to];
-          st->materialKey ^=  Zobrist::psq[promotion][pieceCount[promotion]-1]
-                            ^ Zobrist::psq[pc][pieceCount[pc]];
+          st->materialKey += Zobrist::mat[promotion] - Zobrist::mat[pc];
 
           // Update incremental score
           st->psq += PSQT::psq[promotion][to] - PSQT::psq[pc][to];
@@ -937,8 +948,7 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
       remove_from_hand(sideToMove, gating_type(m));
       st->psq += PSQT::psq[gating_piece][gating_square];
       k ^= Zobrist::psq[gating_piece][gating_square] ^ Zobrist::inhand[gating_piece];
-      st->materialKey ^= Zobrist::psq[gating_piece][pieceCount[gating_piece]-1];
-      st->nonPawnMaterial[us] += PieceValue[MG][gating_piece];
+      st->materialKey -= Zobrist::inhand[gating_piece];
       if (empty_hand(us))
           lostGates |= gates(us);
   }
@@ -947,6 +957,20 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
   if (lostGates)
   {
       st->gatesBB ^= lostGates;
+
+      // When one side runs out of gates, remove all remaining hand
+      // pieces from the material state (but not the board state).
+      for (Color c = WHITE; c <= BLACK; ++c)
+          if (    hand_score(c) && !gates(c)
+              && (lostGates & (c == WHITE ? Rank1BB : Rank8BB)))
+              for (PieceType pt = HAWK; pt <= QUEEN; ++pt)
+                  if (in_hand(c, pt))
+                  {
+                      Piece piece = make_piece(c, pt);
+                      st->materialKey -= Zobrist::mat[piece] + Zobrist::inhand[piece];
+                      st->nonPawnMaterial[c] -= PieceValue[MG][piece];
+                  }
+
       while (lostGates)
           k ^= Zobrist::gate[pop_lsb(&lostGates)];
   }
